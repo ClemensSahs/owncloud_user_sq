@@ -26,7 +26,7 @@
  */
 
 class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
-
+    protected $cache;
     // cached settings
     protected $sql_host;
     protected $sql_username;
@@ -46,7 +46,8 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
     public function __construct() 
     {
         $this->db_conn = false;
-        $this->sql_host = OCP\Config::getAppValue('user_sql', 'sql_host', '');
+        $this->cache = \OC_Cache::getGlobalCache();
+	    $this->sql_host = OCP\Config::getAppValue('user_sql', 'sql_host', '');
         $this->sql_username = OCP\Config::getAppValue('user_sql', 'sql_user', '');
         $this->sql_database = OCP\Config::getAppValue('user_sql', 'sql_database', '');
         $this->sql_password = OCP\Config::getAppValue('user_sql', 'sql_password', '');
@@ -269,7 +270,11 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
 
     public function userExists($uid)
     {
-    	static $cached_exists;
+
+	$cacheKey = 'sql_user_exists_' . $uid;
+	$cacheVal = $this->cache->get($cacheKey);
+	if(! is_null($cacheVal) ) return (bool) $cacheVal;
+
         OC_Log::write('OC_USER_SQL', "Entering userExists() for UID: $uid", OC_Log::DEBUG);
         if(!$this->db_conn)
         {
@@ -300,8 +305,11 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             return false;
         }
         OC_Log::write('OC_USER_SQL', "Fetching results...", OC_Log::DEBUG);
-        $row = $result->fetch();
-        if(!$row)
+       	
+	$exists = (bool)$result->fetch();
+	$this->cache->set($cacheKey, $exists, 60); 
+
+        if(!$exists)
         {
             OC_Log::write('OC_USER_SQL', "Empty row, user does not exists, return false", OC_Log::DEBUG);
             return false;
