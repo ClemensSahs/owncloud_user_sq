@@ -6,7 +6,7 @@
        <licence>AGPL</licence>
        <author>Andreas Boehler &lt;andreas (at) aboehler 
 (dot) at &gt;</author>
-       <require>4.9</require>
+       <require>5.0</require>
        <shipped>false</shipped>
        <types>
        		<authentication/>

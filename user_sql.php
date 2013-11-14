@@ -36,6 +36,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
     protected $sql_column_username;
     protected $sql_column_password;
     protected $sql_column_active;
+    protected $sql_column_displayname;
     protected $sql_type;
     protected $db_conn;
     protected $db;
@@ -53,6 +54,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         $this->sql_table = OCP\Config::getAppValue('user_sql', 'sql_table', '');
         $this->sql_column_username = OCP\Config::getAppValue('user_sql', 'sql_column_username', '');
         $this->sql_column_password = OCP\Config::getAppValue('user_sql', 'sql_column_password', '');
+        $this->sql_column_displayname = OCP\Config::getAppValue('user_sql', 'sql_column_displayname', '');
         $this->sql_column_active = OCP\Config::getAppValue('user_sql', 'sql_column_active', '');
         $this->sql_type = OCP\Config::getAppValue('user_sql', 'sql_type', '');
         $this->default_domain = OCP\Config::getAppValue('user_sql', 'default_domain', '');
@@ -73,7 +75,11 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
 
     public function implementsAction($actions) 
     {
-        return (bool)((OC_USER_BACKEND_CHECK_PASSWORD) & $actions);
+        return (bool)((OC_USER_BACKEND_CHECK_PASSWORD | OC_USER_BAKCNED_GET_DISPLAYNAME) & $actions);
+    }
+
+    public function hasUserListings() {
+        return true;
     }
 
     public function createUser() {
@@ -313,6 +319,65 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             return true;
         }
 
+    }
+
+    public function getDisplayName($uid)
+    {
+        OC_Log::write('OC_USER_SQL', "Entering getDisplayName() for UID: $uid", OC_Log::DEBUG);
+        if(!$this->db_conn)
+        {
+            return false;
+        }
+        $uid = trim($uid);
+        if($this->default_domain && (strpos($uid, '@') === false))
+        {
+            $uid .= "@".$this->default_domain;
+        }
+        $uid = strtolower($uid);
+
+        if(!$this->userExists($uid))
+        {
+            return false;
+        }
+
+        $query = "SELECT $this->sql_column_displayname FROM $this->sql_table WHERE $this->sql_column_username = :uid";
+        if($this->sql_column_active != '')
+            $query .= " AND $this->sql_column_active = 1";
+        OC_Log::write('OC_USER_SQL', "Preparing query: $query", OC_Log::DEBUG);
+        $result = $this->db->prepare($query);
+        $result->bindParam(":uid", $uid);
+        OC_Log::write('OC_USER_SQL', "Executing query...", OC_Log::DEBUG);
+        if(!$result->execute())
+        {
+            $err = $result->errorInfo();
+            OC_Log::write('OC_USER_SQL', "Query failed: ".$err[2], OC_Log::DEBUG);
+            return false;
+        }
+        OC_Log::write('OC_USER_SQL', "Fetching results...", OC_Log::DEBUG);
+        $row = $result->fetch();
+        if(!$row)
+        {
+            OC_Log::write('OC_USER_SQL', "Empty row, user has no display name or does not exist, return false", OC_Log::DEBUG);
+            return false;
+        }
+        else
+        {
+            OC_Log::write('OC_USER_SQL', "User exists, return true", OC_Log::DEBUG);
+            $displayName = utf8_encode($row[$this->sql_column_displayname]);
+            return $displayName;;
+        }
+        return false;
+    }
+
+    public function getDisplayNames($search = '', $limit = null, $offset = null)
+    {
+        $uids = $this->getUsers($search, $limit, $offset);
+        $displayNames = array();
+        foreach($uids as $uid)
+        {
+            $displayNames[$uid] = $this->getDisplayName($uid);
+        }
+        return $displayNames;
     }
        
      /**

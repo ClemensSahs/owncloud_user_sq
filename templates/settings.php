@@ -23,6 +23,7 @@
             <p><label for="sql_table"><?php echo $l->t('Table');?></label><input type="text" id="sql_table" name="sql_table" value="<?php echo $_['sql_table']; ?>" /></p>
             <p><label for="sql_column_username"><?php echo $l->t('Username Column');?></label><input type="text" id="sql_column_username" name="sql_column_username" value="<?php echo $_['sql_column_username']; ?>" /></p>
             <p><label for="sql_column_password"><?php echo $l->t('Password Column');?></label><input type="text" id="sql_column_password" name="sql_column_password" value="<?php echo $_['sql_column_password']; ?>" /></p>
+            <p><label for="sql_column_displayname"><?php echo $l->t('Real Name Column');?></label><input type="text" id="sql_column_displayname" name="sql_column_displayname" value="<?php echo $_['sql_column_displayname']; ?>" /></p>
             <p><label for="crypt_type"><?php echo $l->t('Encryption Type');?></label>
                 <?php $crypt_types = array('md5' => 'MD5', 'md5crypt' => 'MD5 Crypt', 'cleartext' => 'Cleartext', 'mysql_encrypt' => 'mySQL ENCRYPT()', 'system' => 'System (crypt)', 'mysql_password' => 'mySQL PASSWORD()', 'joomla' => 'Joomla MD5 Encryption');?>
                 <select id="crypt_type" name="crypt_type">
