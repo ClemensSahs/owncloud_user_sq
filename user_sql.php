@@ -8,7 +8,7 @@
  *
  * credits go to Ed W for several SQL injection fixes and caching support
  * credits go to Frédéric France for providing Joomla support
- * credits go to 
+ * credits go to
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -44,7 +44,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
     protected $strip_domain;
     protected $crypt_type;
 
-    public function __construct() 
+    public function __construct()
     {
         $this->db_conn = false;
         $this->sql_host = OCP\Config::getAppValue('user_sql', 'sql_host', '');
@@ -61,19 +61,19 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         $this->strip_domain = OCP\Config::getAppValue('user_sql', 'strip_domain', 0);
         $this->crypt_type = OCP\Config::getAppValue('user_sql', 'crypt_type', 'md5crypt');
         $dsn = $this->sql_type.":host=".$this->sql_host.";dbname=".$this->sql_database;
-        try 
+        try
         {
             $this->db = new PDO($dsn, $this->sql_username, $this->sql_password);
             $this->db_conn = true;
         }
-        catch (PDOException $e) 
+        catch (PDOException $e)
         {
             OC_Log::write('OC_USER_SQL', 'Failed to connect to the database: ' . $e->getMessage(), OC_Log::ERROR);
         }
         return false;
     }
 
-    public function implementsAction($actions) 
+    public function implementsAction($actions)
     {
         return (bool)((OC_USER_BACKEND_CHECK_PASSWORD | OC_USER_BAKCNED_GET_DISPLAYNAME) & $actions);
     }
@@ -88,7 +88,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         return false;
     }
 
-    public function deleteUser( $uid ) 
+    public function deleteUser( $uid )
     {
         // Can't delete user
         OC_Log::write('OC_USER_SQL', 'Not possible to delete local users from web frontend using SQL user backend', OC_Log::ERROR);
@@ -143,8 +143,8 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
 
     /**
     * @brief Check if the password is correct
-    * @param $uid The username
-    * @param $password The password
+    * @param string $uid The username
+    * @param string $password The password
     * @returns true/false
     *
     * Check if the password is correct without logging in the user
@@ -162,10 +162,18 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             $uid .= "@".$this->default_domain;
         }
         $uid = strtolower($uid);
-        
-        $query = "SELECT $this->sql_column_username, $this->sql_column_password FROM $this->sql_table WHERE $this->sql_column_username = :uid";
-        if($this->sql_column_active != '')
-            $query .= " AND $this->sql_column_active = 1";
+
+
+        $column = array($this->sql_column_username,$this->sql_column_password);
+        if ($this->sql_column_active != '') {
+            $column[]=$this->sql_column_active;
+        }
+
+        $query = sprintf("SELECT %s FROM %s WHERE %s",
+            implode(",", $column),
+            $this->sql_table,
+            "$this->sql_column_username = :uid");
+
         OC_Log::write('OC_USER_SQL', "Preparing query: $query", OC_Log::DEBUG);
         $result = $this->db->prepare($query);
         $result->bindParam(":uid", $uid);
@@ -183,6 +191,11 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             OC_Log::write('OC_USER_SQL', "Got no row, return false", OC_Log::DEBUG);
             return false;
         }
+
+        if ( !$this->validUser($row) ) {
+            return false;
+        }
+
         OC_Log::write('OC_USER_SQL', "Encrypting and checking password", OC_Log::DEBUG);
         if($this->pacrypt($password, $row[$this->sql_column_password]) == $row[$this->sql_column_password])
         {
@@ -216,17 +229,18 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
        {
         return false;
        }
-       $query = "SELECT $this->sql_column_username FROM $this->sql_table";
-       if($search != '')
+
+
+
+       $column = array($this->sql_column_username);
+       if ($this->sql_column_active != '') {
+           $column[]=$this->sql_column_active;
+       }
+
+       $query = "SELECT " . implode(',', $column) ." FROM $this->sql_table";
+       if($search != '') {
           $query .= " WHERE $this->sql_column_username LIKE :search";
-        if($this->sql_column_active != '')
-        {
-            if($search != '')
-                $query .= " AND";
-            else
-                $query .= " WHERE";
-            $query .= " $this->sql_column_active = 1";
-        }
+       }
        $query .= " ORDER BY $this->sql_column_username";
        if($limit != null)
        {
@@ -255,6 +269,10 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
        OC_Log::write('OC_USER_SQL', "Fetching results...", OC_Log::DEBUG);
        while($row = $result->fetch())
        {
+           if ( !$this->validUser($row) ) {
+               continue;
+           }
+
            $uid = $row[$this->sql_column_username];
            if($this->strip_domain)
            {
@@ -265,6 +283,39 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
        }
        OC_Log::write('OC_USER_SQL', "Return list of results", OC_Log::DEBUG);
        return $users;
+    }
+
+
+    public function validUser(&$user)
+    {
+        $uid = $user[$this->sql_column_username];
+
+        OC_Log::write('OC_USER_SQL', sprintf('Valid user "%s" has permission to connect',$uid), OC_Log::DEBUG);
+
+        $returnStatus = $this->validUserByActiveFlag($user);
+
+        if ($returnStatus) {
+            OC_Log::write('OC_USER_SQL', sprintf('Valid user "%s" has been true',$uid), OC_Log::DEBUG);
+        } else {
+            OC_Log::write('OC_USER_SQL', sprintf('Valid user "%s" has been false',$uid), OC_Log::DEBUG);
+        }
+
+        return $returnStatus;
+    }
+
+    public function validUserByActiveFlag(&$user)
+    {
+        OC_Log::write('OC_USER_SQL', "Valid user is active", OC_Log::DEBUG);
+
+        if($this->sql_column_active == '' || !isset($user[$this->sql_column_active])) {
+            return true;
+        }
+
+        if ( (int) $user[$this->sql_column_active] === 1 ) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -287,14 +338,23 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             $uid .= "@".$this->default_domain;
         }
         $uid = strtolower($uid);
-        
+
         if ($uid === $cached_exists) {
             OC_Log::write('OC_USER_SQL', "User exists (using cache), return true", OC_Log::DEBUG);
             return true;
         }
-        $query = "SELECT $this->sql_column_username FROM $this->sql_table WHERE $this->sql_column_username = :uid";
-        if($this->sql_column_active != '')
-            $query .= " AND $this->sql_column_active = 1";
+
+
+        $column = array($this->sql_column_username);
+        if ($this->sql_column_active != '') {
+            $column[]=$this->sql_column_active;
+        }
+
+        $query = sprintf("SELECT %s FROM %s WHERE %s",
+                implode(",", $column),
+                $this->sql_table,
+                "$this->sql_column_username = :uid");
+
         OC_Log::write('OC_USER_SQL', "Preparing query: $query", OC_Log::DEBUG);
         $result = $this->db->prepare($query);
         $result->bindParam(":uid", $uid);
@@ -312,13 +372,13 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             OC_Log::write('OC_USER_SQL', "Empty row, user does not exists, return false", OC_Log::DEBUG);
             return false;
         }
-        else
-        {
+
+        if ( $this->validUser($row) ) {
             OC_Log::write('OC_USER_SQL', "User exists, return true", OC_Log::DEBUG);
             $cached_exists = $uid;
             return true;
         }
-
+        return false;
     }
 
     public function getDisplayName($uid)
@@ -340,9 +400,9 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             return false;
         }
 
+        // we don't need check active because user exists do this too...
         $query = "SELECT $this->sql_column_displayname FROM $this->sql_table WHERE $this->sql_column_username = :uid";
-        if($this->sql_column_active != '')
-            $query .= " AND $this->sql_column_active = 1";
+
         OC_Log::write('OC_USER_SQL', "Preparing query: $query", OC_Log::DEBUG);
         $result = $this->db->prepare($query);
         $result->bindParam(":uid", $uid);
@@ -360,13 +420,10 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             OC_Log::write('OC_USER_SQL', "Empty row, user has no display name or does not exist, return false", OC_Log::DEBUG);
             return false;
         }
-        else
-        {
-            OC_Log::write('OC_USER_SQL', "User exists, return true", OC_Log::DEBUG);
-            $displayName = utf8_encode($row[$this->sql_column_displayname]);
-            return $displayName;;
-        }
-        return false;
+
+        OC_Log::write('OC_USER_SQL', "User exists, return true", OC_Log::DEBUG);
+        $displayName = utf8_encode($row[$this->sql_column_displayname]);
+        return $displayName;
     }
 
     public function getDisplayNames($search = '', $limit = null, $offset = null)
@@ -379,12 +436,12 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         }
         return $displayNames;
     }
-       
+
      /**
      * The following functions were directly taken from PostfixAdmin and just slightly modified
      * to suit our needs.
-     * Encrypt a password, using the apparopriate hashing mechanism as defined in 
-     * config.inc.php ($this->crypt_type). 
+     * Encrypt a password, using the apparopriate hashing mechanism as defined in
+     * config.inc.php ($this->crypt_type).
      * When wanting to compare one pw to another, it's necessary to provide the salt used - hence
      * the second parameter ($pw_db), which is the existing hash from the DB.
      *
@@ -426,7 +483,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             if(!$this->db_conn)
             {
                 return false;
-            }        
+            }
             if ($pw_db!="") {
                 $salt=substr($pw_db,0,2);
                 $query = "SELECT ENCRYPT(:pw, :salt);";
@@ -455,7 +512,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             if(!$this->db_conn)
             {
                 return false;
-            }        
+            }
             $query = "SELECT PASSWORD(:pw);";
 
             $result = $this->db->prepare($query);
@@ -471,12 +528,12 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
             }
             $password = $row[0];
         }
-        
+
         // The following is by Frédéric France
-        elseif($this->crypt_type == 'joomla') 
+        elseif($this->crypt_type == 'joomla')
         {
             $split_salt = preg_split ('/:/', $pw_db);
-            if(isset($split_salt[1])) 
+            if(isset($split_salt[1]))
             {
                 $salt = $split_salt[1];
             }
@@ -571,7 +628,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         $salt = substr (md5 (rand (0,9999999)), 0, 8);
         return $salt;
     }
-    
+
     private function pahex2bin ($str)
     {
         if(function_exists('hex2bin'))
