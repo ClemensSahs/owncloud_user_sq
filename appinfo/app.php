@@ -21,7 +21,13 @@
 *
 */
 
-require_once('apps/user_sql/user_sql.php');
+$appRoot = dirname(__DIR__);
+
+if ( file_exists( $appRoot . '/vendor/autoload.php') ) {
+    require_once( $appRoot . '/vendor/autoload.php' );
+} else {
+    require_once( $appRoot .  '/autoload_fallback.php');
+}
 
 OC_App::registerAdmin('user_sql','settings');
 
@@ -41,10 +47,10 @@ OC_User::useBackend('SQL');
 
 // add settings page to navigation
 $entry = array(
-        'id' => "user_sql_settings",
-        'order'=>1,
-        'href' => OC_Helper::linkTo( "user_sql", "settings.php" ),
-        'name' => 'SQL'
+    'id' => "user_sql_settings",
+    'order'=>1,
+    'href' => OC_Helper::linkTo( "user_sql", "settings.php" ),
+    'name' => 'SQL'
 );
 
 

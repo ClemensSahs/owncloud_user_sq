@@ -660,7 +660,4 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         }
         return $ret;
     }
-
 }
-
-?>
