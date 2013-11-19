@@ -24,3 +24,6 @@ spl_autoload_register($autoloadFunctionClassMap);
 
 $splClassLoader= new SplClassLoader('Symfony\Component\EventDispatcher',__DIR__ . '/vendor');
 $splClassLoader->register();
+
+$splClassLoader= new SplClassLoader('postfixadmin',__DIR__ . '/vendor');
+$splClassLoader->register();
