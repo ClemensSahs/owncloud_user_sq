@@ -19,24 +19,23 @@ Currently we have the following events:
 * "valid_user.pre" - hight level logik or preloading of data (cache)
 * "valid_user.post" - low level valid stack
 
+the event
 the event object
 ----------------
 
 * userId
-
-OwnCloud userid / username
+  OwnCloud userid / username
 
 * userData
-
-All possible importend user data
+  All possible importend user data
 
 * eventStatus
-
-set this false
+  set this false
 
 * db.sql_table
 * db.sql_column_username
 * db.handle
+
 
 
 
