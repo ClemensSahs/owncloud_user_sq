@@ -1,6 +1,6 @@
 <?php
 
-if (!$classMap) {
+if (isset($classMap)) {
     $classMap=array();
 }
 $classMap['OC_USER_SQL'] = __DIR__ .  '/user_sql.php';
@@ -22,5 +22,5 @@ $autoloadFunctionClassMap = function ($className) use ($classMap) {
 
 spl_autoload_register($autoloadFunctionClassMap);
 
-$splClassLoader= new SplClassLoader('Symfony\Component\EventDispatcher',__DIR__ . '/vendor/Symfony/Component/EventDispatcher');
+$splClassLoader= new SplClassLoader('Symfony\Component\EventDispatcher',__DIR__ . '/vendor');
 $splClassLoader->register();

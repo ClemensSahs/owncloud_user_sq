@@ -1,5 +1,7 @@
 <?php
 
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\EventDispatcher\Event;
 /**
  * ownCloud - user_sql
  *
@@ -43,9 +45,11 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
     protected $default_domain;
     protected $strip_domain;
     protected $crypt_type;
+    protected static $eventDispatcher;
 
     public function __construct()
     {
+
         $this->db_conn = false;
         $this->sql_host = OCP\Config::getAppValue('user_sql', 'sql_host', '');
         $this->sql_username = OCP\Config::getAppValue('user_sql', 'sql_user', '');
@@ -65,12 +69,29 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         {
             $this->db = new PDO($dsn, $this->sql_username, $this->sql_password);
             $this->db_conn = true;
+
+            $eventDispatcher = $this->getEventDispatcher();
+            $eventDispatcher->addListener('valid_user', array($this,'validUserByActiveFlag'));
+
+            OC_App::loadApps('user_sql_addon');
         }
         catch (PDOException $e)
         {
             OC_Log::write('OC_USER_SQL', 'Failed to connect to the database: ' . $e->getMessage(), OC_Log::ERROR);
         }
         return false;
+    }
+
+    /**
+     * @return \Symfony\Component\EventDispatcher\EventDispatcher
+     */
+    public static function getEventDispatcher()
+    {
+        if ( static::$eventDispatcher === null ) {
+            static::$eventDispatcher = new EventDispatcher();
+        }
+
+        return static::$eventDispatcher;
     }
 
     public function implementsAction($actions)
@@ -286,36 +307,72 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
     }
 
 
+    /**
+     *
+     * @param array|object $user
+     * @return unknown
+     */
     public function validUser(&$user)
     {
         $uid = $user[$this->sql_column_username];
 
         OC_Log::write('OC_USER_SQL', sprintf('Valid user "%s" has permission to connect',$uid), OC_Log::DEBUG);
 
-        $returnStatus = $this->validUserByActiveFlag($user);
+        $event = new Event();
+        $event->userId= $uid;
+        $event->userData= $user;
+        $event->validStatus= true;
+        $event->db=array(
+            'sql_table'=>$this->sql_table,
+            'sql_column_username'=>$this->sql_column_username,
+            'handle'=>$this->db
+        );
 
-        if ($returnStatus) {
+        $dispacher = static::getEventDispatcher();
+
+        // all hight level valid functions
+        $dispacher->dispatch('valid_user.pre',$event);
+
+        if ( $event->validStatus !== false ) {
+            // all valid functions
+            $dispacher->dispatch('valid_user',$event);
+        }
+
+        if ( $event->validStatus !== false ) {
+            // all low level valid functions
+            $dispacher->dispatch('valid_user.post',$event);
+        }
+
+        if ($event->validStatus) {
             OC_Log::write('OC_USER_SQL', sprintf('Valid user "%s" has been true',$uid), OC_Log::DEBUG);
         } else {
             OC_Log::write('OC_USER_SQL', sprintf('Valid user "%s" has been false',$uid), OC_Log::DEBUG);
         }
 
-        return $returnStatus;
+        return $event->validStatus;
     }
 
-    public function validUserByActiveFlag(&$user)
+    public function validUserByActiveFlag(Event $event)
     {
-        OC_Log::write('OC_USER_SQL', "Valid user is active", OC_Log::DEBUG);
+        $user = $event->userData;
 
+        OC_Log::write('OC_USER_SQL', sprintf('Valid user "%s" has active flag',$event->userId), OC_Log::DEBUG);
         if($this->sql_column_active == '' || !isset($user[$this->sql_column_active])) {
-            return true;
+            goto RETURN_TRUE;
         }
 
         if ( (int) $user[$this->sql_column_active] === 1 ) {
-            return true;
+            goto RETURN_TRUE;
         }
 
-        return false;
+        RETURN_FALSE:
+            $event->validStatus = false;
+            $event->stopPropagation();
+            return false;
+
+        RETURN_TRUE:
+            $event->validStatus = true;
+            return true;
     }
 
     /**
