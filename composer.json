@@ -1,0 +1,26 @@
+{
+    "name": "aboehler/user_sql",
+    "type": "library",
+    "description": "Owncloud SQL authentification",
+    "keywords": ["owncloud","user backend","owncloud apps"],
+    "homepage": "http://www.aboehler.at/hg/user_sql/summary",
+    "license": "AGPL",
+    "authors": [
+        {
+            "name": "Andreas Böhler",
+            "email": "andy@klasseonline.dyndns.org"
+        },
+        {
+            "name": "Clemens Sahs",
+            "email": "clemens.sahs@slides-worker.org"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.3"
+    },
+    "autoload": {
+        "classmap": [
+            "user_sql.php"
+        ],
+    }
+}
