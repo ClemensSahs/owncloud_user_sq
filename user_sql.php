@@ -525,6 +525,8 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
      * the second parameter ($pw_db), which is the existing hash from the DB.
      *
      * @todo here we need a Exception and ExceptionHandling string or bool is a bad idea...
+     * @todo this if stack cost performence, refactor it to a faster logic
+     * @todo allow app to add here a own password crypt (security-problem)
      * @param string $pw
      * @param string $encrypted password
      * @return string encrypted password.
