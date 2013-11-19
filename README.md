@@ -24,12 +24,15 @@ the event object
 ----------------
 
 * userId
+  
   OwnCloud userid / username
 
 * userData
+  
   All possible importend user data
 
 * eventStatus
+  
   set this false
 
 * db.sql_table
