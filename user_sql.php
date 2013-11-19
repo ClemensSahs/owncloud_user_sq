@@ -150,38 +150,62 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         }
         $uid = $this->canonicalizeUid($uid);
 
-        $query = "SELECT $this->sql_column_password FROM $this->sql_table WHERE $this->sql_column_username = :uid";
-        OC_Log::write('OC_USER_SQL', "Preparing query: $query", OC_Log::DEBUG);
-        $result = $this->db->prepare($query);
-        $result->bindParam(":uid", $uid);
-        OC_Log::write('OC_USER_SQL', "Executing query...", OC_Log::DEBUG);
-        if(!$result->execute())
-        {
-            return false;
-        }
-        OC_Log::write('OC_USER_SQL', "Fetching result...", OC_Log::DEBUG);
-        $row = $result->fetch();
-        if(!$row)
-        {
-            return false;
-        }
-        $old_password = $row[$this->sql_column_password];
+        /**
+         * @todo pacrypt return a bool if it faild we need here ExceptionHandle
+         */
+        $old_password = $this->getPassword($uid);
         $enc_password = $this->pacrypt($password, $old_password);
+
         $query = "UPDATE $this->sql_table SET $this->sql_column_password = :enc_password WHERE $this->sql_column_username = :uid";
         OC_Log::write('OC_USER_SQL', "Preapring query: $query", OC_Log::DEBUG);
         $result = $this->db->prepare($query);
+
         $result->bindParam(":enc_password", $enc_password);
         $result->bindParam(":uid", $uid);
+
         OC_Log::write('OC_USER_SQL', "Executing query...", OC_Log::DEBUG);
-        if(!$result->execute())
-        {
+        if(!$result->execute()) {
             $err = $result->errorInfo();
             OC_Log::write('OC_USER_SQL', "Query failed: ".$err[2], OC_Log::DEBUG);
             OC_Log::write('OC_USER_SQL', "Could not update password!", OC_Log::ERROR);
             return false;
         }
+
         OC_Log::write('OC_USER_SQL', "Updated password successfully, return true", OC_Log::DEBUG);
         return true;
+    }
+
+    /**
+    *
+    * @param string $uid The username
+    * @return string $password The password
+    */
+    protected function getPassword($uid)
+    {
+        OC_Log::write('OC_USER_SQL', "Entering getPassword() for UID: $uid", OC_Log::DEBUG);
+        if (!$this->db_conn) {
+            return false;
+        }
+
+        $uid = $this->canonicalizeUid($uid);
+
+        $query = "SELECT $this->sql_column_password FROM $this->sql_table WHERE $this->sql_column_username = :uid";
+        OC_Log::write('OC_USER_SQL', "Preparing query: $query", OC_Log::DEBUG);
+        $result = $this->db->prepare($query);
+        $result->bindParam(":uid", $uid);
+
+        OC_Log::write('OC_USER_SQL', "Executing query...", OC_Log::DEBUG);
+        if(!$result->execute()) {
+            return false;
+        }
+
+        OC_Log::write('OC_USER_SQL', "Fetching result...", OC_Log::DEBUG);
+        if ( $result->rowCount() === 0 ) {
+            return false;
+        }
+
+        $row = $result->fetch();
+        return $row[ $this->sql_column_password ];
     }
 
     /**
@@ -195,8 +219,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
     public function checkPassword($uid, $password)
     {
         OC_Log::write('OC_USER_SQL', "Entering checkPassword() for UID: $uid", OC_Log::DEBUG);
-        if(!$this->db_conn)
-        {
+        if (!$this->db_conn) {
             return false;
         }
 
@@ -217,35 +240,34 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         $result = $this->db->prepare($query);
         $result->bindParam(":uid", $uid);
         OC_Log::write('OC_USER_SQL', "Executing query...", OC_Log::DEBUG);
-        if(!$result->execute())
-        {
+        if (!$result->execute()) {
             $err = $result->errorInfo();
             OC_Log::write('OC_USER_SQL', "Query failed: ".$err[2], OC_Log::DEBUG);
             return false;
         }
         OC_Log::write('OC_USER_SQL', "Fetching row...", OC_Log::DEBUG);
         $row = $result->fetch();
-        if(!$row)
-        {
+        if (!$row) {
             OC_Log::write('OC_USER_SQL', "Got no row, return false", OC_Log::DEBUG);
             return false;
         }
 
-        if ( !$this->validUser($row) ) {
+        if (!$this->validUser($row)) {
             return false;
         }
 
+        /**
+         * @todo we need here exception handle if pacrypt faild
+         */
         OC_Log::write('OC_USER_SQL', "Encrypting and checking password", OC_Log::DEBUG);
-        if($this->pacrypt($password, $row[$this->sql_column_password]) == $row[$this->sql_column_password])
-        {
-            OC_Log::write('OC_USER_SQL', "Passwords matching, return true", OC_Log::DEBUG);
-            return $this->stripDomainUid($uid);
-        }
-        else
-        {
+        if ($row[$this->sql_column_password] !== $this->pacrypt($password, $row[$this->sql_column_password]) ) {
             OC_Log::write('OC_USER_SQL', "Passwords do not match, return false", OC_Log::DEBUG);
             return false;
         }
+
+
+        OC_Log::write('OC_USER_SQL', "Passwords matching, return true", OC_Log::DEBUG);
+        return $this->stripDomainUid($uid);
     }
 
     /**
@@ -500,6 +522,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
      * When wanting to compare one pw to another, it's necessary to provide the salt used - hence
      * the second parameter ($pw_db), which is the existing hash from the DB.
      *
+     * @todo here we need a Exception and ExceptionHandling string or bool is a bad idea...
      * @param string $pw
      * @param string $encrypted password
      * @return string encrypted password.
@@ -533,10 +556,8 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
 
         // See https://sourceforge.net/tracker/?func=detail&atid=937966&aid=1793352&group_id=191583
         // this is apparently useful for pam_mysql etc.
-        elseif ($this->crypt_type == 'mysql_encrypt')
-        {
-            if(!$this->db_conn)
-            {
+        elseif ($this->crypt_type == 'mysql_encrypt') {
+            if(!$this->db_conn) {
                 return false;
             }
             if ($pw_db!="") {
@@ -548,22 +569,20 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
 
             $result = $this->db->prepare($query);
             $result->bindParam(":pw", $pw);
-            if($pw_db != "")
+            if($pw_db != "") {
                 $result->bindParam(":salt", $salt);
-            if(!$result->execute())
-            {
+            }
+
+            if(!$result->execute() ||
+               $result->rowCount() !== 1) {
                 return false;
             }
+
             $row = $result->fetch();
-            if(!$row)
-            {
-                return false;
-            }
             $password = $row[0];
         }
 
-        elseif($this->crypt_type == 'mysql_password')
-        {
+        elseif($this->crypt_type == 'mysql_password') {
             if(!$this->db_conn)
             {
                 return false;
@@ -572,24 +591,19 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
 
             $result = $this->db->prepare($query);
             $result->bindParam(":pw", $pw);
-            if(!$result->execute())
-            {
+
+            if(!$result->execute() ||
+               $result->rowCount() !== 1) {
                 return false;
             }
             $row = $result->fetch();
-            if(!$row)
-            {
-                return false;
-            }
             $password = $row[0];
         }
 
         // The following is by Frédéric France
-        elseif($this->crypt_type == 'joomla')
-        {
+        elseif($this->crypt_type == 'joomla') {
             $split_salt = preg_split ('/:/', $pw_db);
-            if(isset($split_salt[1]))
-            {
+            if(isset($split_salt[1])) {
                 $salt = $split_salt[1];
             }
             $password = ($salt) ? md5($pw.$salt) : md5($pw);
