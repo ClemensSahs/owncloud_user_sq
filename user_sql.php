@@ -116,6 +116,31 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         return false;
     }
 
+
+    public function canonicalizeUid($uid) {
+        $uid = trim($uid);
+        $uid = addDomainUid($uid);
+        return strtolower($uid);
+    }
+
+    public function stripDomainUid($uid) {
+        if($this->strip_domain) {
+            $uid = explode("@", $uid);
+            $uid = $uid[0];
+        }
+        return strtolower($uid);
+    }
+
+    public function addDomainUid($uid) {
+        if(!is_string($this->default_domain) ||
+           strpos($uid, '@') === false
+        ) {
+            return $uid;
+        }
+
+        return $uid . "@" . $this->default_domain;
+    }
+
     public function setPassword ( $uid, $password ) {
         // Update the user's password - this might affect other services, that user the same database, as well
         OC_Log::write('OC_USER_SQL', "Entering setPassword for UID: $uid", OC_Log::DEBUG);
@@ -123,11 +148,8 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         {
             return false;
         }
-        $uid = trim($uid);
-        if($this->default_domain && (strpos($uid, '@') === false))
-        {
-            $uid .= "@".$this->default_domain;
-        }
+        $uid = $this->canonicalizeUid($uid);
+
         $query = "SELECT $this->sql_column_password FROM $this->sql_table WHERE $this->sql_column_username = :uid";
         OC_Log::write('OC_USER_SQL', "Preparing query: $query", OC_Log::DEBUG);
         $result = $this->db->prepare($query);
@@ -177,12 +199,8 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         {
             return false;
         }
-        $uid = trim($uid);
-        if($this->default_domain && (strpos($uid, '@') === false))
-        {
-            $uid .= "@".$this->default_domain;
-        }
-        $uid = strtolower($uid);
+
+        $uid = $this->canonicalizeUid($uid);
 
 
         $column = array($this->sql_column_username,$this->sql_column_password);
@@ -221,12 +239,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         if($this->pacrypt($password, $row[$this->sql_column_password]) == $row[$this->sql_column_password])
         {
             OC_Log::write('OC_USER_SQL', "Passwords matching, return true", OC_Log::DEBUG);
-            if($this->strip_domain)
-            {
-                $uid = explode("@", $uid);
-                $uid = $uid[0];
-            }
-            return $uid;
+            return $this->stripDomainUid($uid);
         }
         else
         {
@@ -293,14 +306,7 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
            if ( !$this->validUser($row) ) {
                continue;
            }
-
-           $uid = $row[$this->sql_column_username];
-           if($this->strip_domain)
-           {
-               $uid = explode("@", $uid);
-               $uid = $uid[0];
-           }
-           $users[] = strtolower($uid);
+           $users[] =  $this->stripDomainUid( $row[$this->sql_column_username] );
        }
        OC_Log::write('OC_USER_SQL', "Return list of results", OC_Log::DEBUG);
        return $users;
@@ -389,12 +395,8 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         {
             return false;
         }
-        $uid = trim($uid);
-        if($this->default_domain && (strpos($uid, '@') === false))
-        {
-            $uid .= "@".$this->default_domain;
-        }
-        $uid = strtolower($uid);
+
+        $uid = $this->canonicalizeUid($uid);
 
         if ($uid === $cached_exists) {
             OC_Log::write('OC_USER_SQL', "User exists (using cache), return true", OC_Log::DEBUG);
@@ -445,12 +447,8 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         {
             return false;
         }
-        $uid = trim($uid);
-        if($this->default_domain && (strpos($uid, '@') === false))
-        {
-            $uid .= "@".$this->default_domain;
-        }
-        $uid = strtolower($uid);
+
+        $uid = $this->canonicalizeUid($uid);
 
         if(!$this->userExists($uid))
         {
