@@ -44,7 +44,7 @@
             description="Run tests for the various components in parallel"
         >
         <parallel threadCount="1">
-            <run-test component=""/>
+            <run-test />
             <!--
             <check-cs/>
             -->
