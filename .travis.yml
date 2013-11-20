@@ -14,8 +14,8 @@ services:
 script:
  - ant travis -keep-going
 
-#after_script:
-# - php vendor/bin/coveralls -v
+after_script:
+ - php vendor/bin/coveralls -v
 
 notifications:
   email: false
