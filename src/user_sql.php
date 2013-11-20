@@ -51,7 +51,10 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
 
     public function __construct()
     {
+        $this->init();
+    }
 
+    protected function init () {
         $this->db_conn = false;
         $this->loadAppValues();
 
@@ -69,7 +72,6 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
         {
             OC_Log::write('OC_USER_SQL', 'Failed to connect to the database: ' . $e->getMessage(), OC_Log::ERROR);
         }
-        return false;
     }
 
     public function getAppValueWrapper($appName,$valueName,$default)
