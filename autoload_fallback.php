@@ -3,8 +3,8 @@
 if (isset($classMap)) {
     $classMap=array();
 }
-$classMap['OC_USER_SQL'] = __DIR__ .  '/user_sql.php';
-$classMap['SplClassLoader'] = __DIR__ .  '/SplClassLoader.php';
+$classMap['OC_USER_SQL'] = __DIR__ .  '/src/user_sql.php';
+$classMap['SplClassLoader'] = __DIR__ .  '/vendor/Spl/SplClassLoader.php';
 
 
 $autoloadFunctionClassMap = function ($className) use ($classMap) {
