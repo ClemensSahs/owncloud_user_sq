@@ -1,0 +1,21 @@
+language: php
+
+php:
+ - 5.4
+ - 5.5
+
+services:
+ - MySQL
+ - PostgreSQL
+
+#before_script:
+# - php tests/_files/initDatabase.php
+
+script:
+ - ant travis -keep-going
+
+#after_script:
+# - php vendor/bin/coveralls -v
+
+notifications:
+  email: false

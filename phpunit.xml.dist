@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<phpunit bootstrap="./bootstrap.php" colors="true">
+    <testsuites>
+        <testsuite name="OC USER SQL Test Suite">
+            <directory>./oc_user_sql</directory>
+        </testsuite>
+    </testsuites>
+
+    <groups>
+        <exclude>
+        </exclude>
+    </groups>
+
+    <listeners>
+    </listeners>
+
+
+    <logging>
+        <log type="coverage-text" target="php://stdout"/>
+    </logging>
+</phpunit>
