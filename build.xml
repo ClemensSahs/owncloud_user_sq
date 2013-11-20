@@ -69,8 +69,8 @@
             </echo>
             <exec
                 executable="${basedir}/vendor/bin/phpunit"
-                output="${basedir}/build/test-results.log"
-                error="${basedir}/build/test-results.log"
+                output="${basedir}/build/test-results/oc_user_sql.log"
+                error="${basedir}/build/test-results/oc_user_sql.log"
                 failonerror="true"
                 append="true"
             >
@@ -78,7 +78,7 @@
                 <arg value="${basedir}/build/logs/clover.xml" />
                 <arg value="-c" />
                 <arg value="${basedir}/tests/phpunit.xml.dist" />
-                <arg value="${basedir}/tests/oc_user_sql" />
+                <arg value="${basedir}/tests/OcUserSqlTest" />
             </exec>
         </sequential>
     </macrodef>
