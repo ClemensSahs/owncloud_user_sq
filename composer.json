@@ -19,6 +19,10 @@
         "php": ">=5.3.3",
         "symfony/event-dispatcher": "~2.3"
     },
+    "require-dev": {
+        "phpunit/phpunit": "~3.7",
+        "satooshi/php-coveralls": "dev-master"
+    },
     "autoload": {
         "classmap": [
             "user_sql.php"
