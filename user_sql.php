@@ -53,35 +53,57 @@ class OC_USER_SQL extends OC_User_Backend implements OC_User_Interface {
     {
 
         $this->db_conn = false;
-        $this->sql_host = OCP\Config::getAppValue('user_sql', 'sql_host', '');
-        $this->sql_username = OCP\Config::getAppValue('user_sql', 'sql_user', '');
-        $this->sql_database = OCP\Config::getAppValue('user_sql', 'sql_database', '');
-        $this->sql_password = OCP\Config::getAppValue('user_sql', 'sql_password', '');
-        $this->sql_table = OCP\Config::getAppValue('user_sql', 'sql_table', '');
-        $this->sql_column_username = OCP\Config::getAppValue('user_sql', 'sql_column_username', '');
-        $this->sql_column_password = OCP\Config::getAppValue('user_sql', 'sql_column_password', '');
-        $this->sql_column_displayname = OCP\Config::getAppValue('user_sql', 'sql_column_displayname', '');
-        $this->sql_column_active = OCP\Config::getAppValue('user_sql', 'sql_column_active', '');
-        $this->sql_type = OCP\Config::getAppValue('user_sql', 'sql_type', '');
-        $this->default_domain = OCP\Config::getAppValue('user_sql', 'default_domain', '');
-        $this->strip_domain = OCP\Config::getAppValue('user_sql', 'strip_domain', 0);
-        $this->crypt_type = OCP\Config::getAppValue('user_sql', 'crypt_type', 'md5crypt');
-        $dsn = $this->sql_type.":host=".$this->sql_host.";dbname=".$this->sql_database;
+        $this->loadAppValues();
+
         try
         {
-            $this->db = new PDO($dsn, $this->sql_username, $this->sql_password);
+            $this->connectToDatabase();
             $this->db_conn = true;
 
             $eventDispatcher = $this->getEventDispatcher();
             $eventDispatcher->addListener('valid_user', array($this,'validUserByActiveFlag'));
 
-            OC_App::loadApps('user_sql_addon');
+            $this->loadPlugins();
         }
         catch (PDOException $e)
         {
             OC_Log::write('OC_USER_SQL', 'Failed to connect to the database: ' . $e->getMessage(), OC_Log::ERROR);
         }
         return false;
+    }
+
+    public function getAppValueWrapper($appName,$valueName,$default)
+    {
+        return OCP\Config::getAppValue($appName, $valueName, $default);
+    }
+
+    public function loadAppValues()
+    {
+        $this->sql_host = $this->getAppValueWrapper('user_sql', 'sql_host', '');
+        $this->sql_username = $this->getAppValueWrapper('user_sql', 'sql_user', '');
+        $this->sql_database = $this->getAppValueWrapper('user_sql', 'sql_database', '');
+        $this->sql_password = $this->getAppValueWrapper('user_sql', 'sql_password', '');
+        $this->sql_table = $this->getAppValueWrapper('user_sql', 'sql_table', '');
+        $this->sql_column_username = $this->getAppValueWrapper('user_sql', 'sql_column_username', '');
+        $this->sql_column_password = $this->getAppValueWrapper('user_sql', 'sql_column_password', '');
+        $this->sql_column_displayname = $this->getAppValueWrapper('user_sql', 'sql_column_displayname', '');
+        $this->sql_column_active = $this->getAppValueWrapper('user_sql', 'sql_column_active', '');
+        $this->sql_type = $this->getAppValueWrapper('user_sql', 'sql_type', '');
+        $this->default_domain = $this->getAppValueWrapper('user_sql', 'default_domain', '');
+        $this->strip_domain = $this->getAppValueWrapper('user_sql', 'strip_domain', 0);
+        $this->crypt_type = $this->getAppValueWrapper('user_sql', 'crypt_type', 'md5crypt');
+    }
+
+    public function loadPlugins()
+    {
+        OC_App::loadApps('user_sql_addon');
+    }
+
+    public function connectToDatabase()
+    {
+        $dsn = $this->sql_type.":host=".$this->sql_host.";dbname=".$this->sql_database;
+
+        $this->db = new PDO($dsn, $this->sql_username, $this->sql_password);
     }
 
     /**
